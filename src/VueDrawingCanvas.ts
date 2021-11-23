@@ -76,14 +76,6 @@ export default /*#__PURE__*/defineComponent({
         return ['jpeg', 'png'].indexOf(value) !== -1
       },
       default: () => 'png'
-    },
-    canvasId: {
-      type: String,
-      default: () => 'VueDrawingCanvas'
-    },
-    initialImage: {
-      type: Array,
-      default: () => []
     }
   },
   data(): DataInit {
@@ -106,9 +98,6 @@ export default /*#__PURE__*/defineComponent({
   },
   mounted() {
     this.setContext();
-    this.$nextTick(() => {
-      this.drawInitialImage()
-    })
   },
   watch: {
     backgroundImage: function () {
@@ -117,16 +106,10 @@ export default /*#__PURE__*/defineComponent({
   },
   methods: {
     async setContext() {
-      let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#'+this.canvasId);
+      let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#VueDrawingCanvas');
       this.context = this.context ? this.context : canvas.getContext('2d');
       
       await this.setBackground();
-    },
-    drawInitialImage() {
-      if (this.initialImage.length > 0) {
-        this.images = [].concat(this.images, this.initialImage)
-        this.redraw()
-      }
     },
     clear() {
       this.context.clearRect(0, 0, this.width, this.height);
@@ -146,7 +129,6 @@ export default /*#__PURE__*/defineComponent({
         return new Promise<void>((resolve) => { 
           if (!this.backgroundImage) {
             resolve()
-            return;
           }
           const image = new Image();
           image.src = this.backgroundImage;
@@ -163,7 +145,7 @@ export default /*#__PURE__*/defineComponent({
     getCoordinates(event) {
       let x, y;
       if (event.touches && event.touches.length > 0) {
-        let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#'+this.canvasId);
+        let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#VueDrawingCanvas');
         let rect = canvas.getBoundingClientRect();
         x = (event.touches[0].clientX - rect.left);
         y = (event.touches[0].clientY - rect.top);
@@ -208,8 +190,7 @@ export default /*#__PURE__*/defineComponent({
               coordinates = [
                 { x: coordinate.x, y: this.strokes.from.y },
                 { x: coordinate.x, y: coordinate.y },
-                { x: this.strokes.from.x, y: coordinate.y }, 
-                {x: this.strokes.from.x, y: this.strokes.from.y}
+                { x: this.strokes.from.x, y: coordinate.y }
               ];
               break;
             case 'triangle':
@@ -217,15 +198,13 @@ export default /*#__PURE__*/defineComponent({
               let width = this.strokes.from.x < coordinate.x ? this.strokes.from.x + center : this.strokes.from.x - center;
               coordinates = [
                 { x: coordinate.x, y: this.strokes.from.y },
-                { x: width, y: coordinate.y }, 
-                {x: this.strokes.from.x, y: this.strokes.from.y}
+                { x: width, y: coordinate.y }
               ];
               break;
             case 'half_triangle':
               coordinates = [
                 { x: coordinate.x, y: this.strokes.from.y },
-                { x: this.strokes.from.x, y: coordinate.y }, 
-                {x: this.strokes.from.x, y: this.strokes.from.y}
+                { x: this.strokes.from.x, y: coordinate.y }
               ];
               break;
             case 'circle':
@@ -346,45 +325,40 @@ export default /*#__PURE__*/defineComponent({
       });
     },
     wrapText(context, text, x, y, maxWidth, lineHeight) {
-      const newLineRegex = /(\r\n|\n\r|\n|\r)+/g
-      const whitespaceRegex = /\s+/g
-      var lines = text.split(newLineRegex).filter(word => word.length > 0)
-      for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {      
-        var words = lines[lineNumber].split(whitespaceRegex).filter(word => word.length > 0);
-        var line = '';
-  
-        for(var n = 0; n < words.length; n++) {
-          var testLine = line + words[n] + ' ';
-          var metrics = context.measureText(testLine);
-          var testWidth = metrics.width;
-          if (testWidth > maxWidth && n > 0) {
-            if((this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') )
-            {
-              context.strokeText(line, x, y);
-            }
-            else{
-              context.fillText(line, x, y);
-            }  
-            line = words[n] + ' ';
+      var lines = text.split("\n");
+        for (var i = 0; i < lines.length; i++) {
+         var words = lines[i].split(' ');
+            var line = '';
+              for (var n = 0; n < words.length; n++) {
+                var testLine = line + words[n] + ' ';
+                var metrics = context.measureText(testLine);
+                var testWidth = metrics.width;
+                 if (testWidth > maxWidth && n > 0) {
+                    if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
+                      context.strokeText(line, x, y);
+                      line = words[n] + ' ';
+                      y += lineHeight;
+                    } else {
+                        context.fillText(line, x, y);
+                        line = words[n] + ' ';
+                        y += lineHeight;
+                      }
+                } else {
+                  line = testLine;
+                }
+          }
+         context.fillText(line, x, y);
             y += lineHeight;
-          }
-          else {
-            line = testLine;
-          }
-        }
-        if((this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') )
-        {
-          context.strokeText(line, x, y);
-        }
-        else{
-          context.fillText(line, x, y);
-        }
-        y += words.length > 0 ? lineHeight : 0;
-      }
+        } 
+          if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
+            context.strokeText(line, x, y);
+          } else {
+            context.fillText(line, x, y);
+            }
     },
     save() {
       if (this.watermark) {
-        let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#'+this.canvasId);
+        let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#VueDrawingCanvas');
         let temp: HTMLCanvasElement = <HTMLCanvasElement>document.createElement('canvas');
         let ctx = temp.getContext('2d');
         temp.width = this.width;
@@ -449,23 +423,20 @@ export default /*#__PURE__*/defineComponent({
           return(temp.toDataURL('image/' + this.saveAs, 1));
         }
       } else {
-        let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#'+this.canvasId);
+        let canvas: HTMLCanvasElement = <HTMLCanvasElement>document.querySelector('#VueDrawingCanvas');
         this.$emit('update:image', canvas.toDataURL('image/' + this.saveAs, 1));
         return canvas.toDataURL('image/' + this.saveAs, 1);
       }
     },
     isEmpty() {
       return this.images.length > 0 ? false : true;
-    },
-    getAllStrokes() {
-      return this.images;
     }
   },
   render() {
     if (isVue2) {
       return h('canvas', {
         attrs: {
-          id: this.canvasId,
+          id: 'VueDrawingCanvas',
           width: this.width,
           height: this.height
         },
@@ -489,7 +460,7 @@ export default /*#__PURE__*/defineComponent({
       });
     }
     return h('canvas', {
-      id: this.canvasId,
+      id: 'VueDrawingCanvas',
       height: this.height,
       width: this.width,
       style: {
