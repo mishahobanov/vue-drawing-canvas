@@ -123,7 +123,11 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
 
     async drawBackgroundImage() {
       if (!this.loadedImage) {
-        return new Promise((resolve, reject) => {
+        return new Promise(resolve => {
+          if (!this.backgroundImage) {
+            resolve();
+          }
+
           const image = new Image();
           image.src = this.backgroundImage;
 
@@ -132,8 +136,6 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
             this.loadedImage = image;
             resolve();
           };
-
-          image.onerror = reject;
         });
       } else {
         this.context.drawImage(this.loadedImage, 0, 0, this.width, this.height);
@@ -357,43 +359,42 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
         }
       });
     },
-   wrapText(context, text, x, y, maxWidth, lineHeight) {
-	var lines = text.split("\n");
+    wrapText(context, text, x, y, maxWidth, lineHeight) {
+      var words = text.split(' ');
+      var line = '';
+        
 
-    for (var i = 0; i < lines.length; i++) {
-		
-		 var words = lines[i].split(' ');
-		var line = '';
-      for (var n = 0; n < words.length; n++) {
-		  
+      for(var n = 0; n < words.length; n++) {
         var testLine = line + words[n] + ' ';
         var metrics = context.measureText(testLine);
         var testWidth = metrics.width;
-
         if (testWidth > maxWidth && n > 0) {
-          if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
+          if((this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') )
+          {
             context.strokeText(line, x, y);
             line = words[n] + ' ';
             y += lineHeight;
-          } else {
+          }
+          else{
             context.fillText(line, x, y);
             line = words[n] + ' ';
             y += lineHeight;
           }
-        } else {
+         
+        }
+        else {
           line = testLine;
         }
       }
-	   context.fillText(line, x, y);
-        y += lineHeight;
-	}
-
-      if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
+      if((this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') )
+      {
         context.strokeText(line, x, y);
-      } else {
+      }
+      else{
         context.fillText(line, x, y);
       }
     },
+
     save() {
       if (this.watermark) {
         let canvas = document.querySelector('#VueDrawingCanvas');
@@ -447,7 +448,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
             ctx.strokeStyle = this.watermark.fontStyle.color;
 
             if (this.watermark.fontStyle && this.watermark.fontStyle.width) {
-              this.wrapText(ctx, this.watermark.source,  this.watermark.x,  this.watermark.y, this.watermark.fontStyle.width, this.watermark.fontStyle.lineHeight);
+              this.wrapText(ctx, this.watermark.source, this.watermark.x, this.watermark.y, this.watermark.fontStyle.width, this.watermark.fontStyle.lineHeight);
             } else {
               ctx.strokeText(this.watermark.source, this.watermark.x, this.watermark.y);
             }
@@ -455,7 +456,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
             ctx.fillStyle = color;
 
             if (this.watermark.fontStyle && this.watermark.fontStyle.width) {
-              this.wrapText(ctx, this.watermark.source,  this.watermark.x,  this.watermark.y, this.watermark.fontStyle.width, this.watermark.fontStyle.lineHeight);
+              this.wrapText(ctx, this.watermark.source, this.watermark.x, this.watermark.y, this.watermark.fontStyle.width, this.watermark.fontStyle.lineHeight);
             } else {
               ctx.fillText(this.watermark.source, this.watermark.x, this.watermark.y);
             }
