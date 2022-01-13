@@ -66,6 +66,14 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
         return ['jpeg', 'png'].indexOf(value) !== -1;
       },
       default: () => 'png'
+    },
+    canvasId: {
+      type: String,
+      default: () => 'VueDrawingCanvas'
+    },
+    initialImage: {
+      type: Array,
+      default: () => []
     }
   },
 
@@ -93,6 +101,9 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
 
   mounted() {
     this.setContext();
+    this.$nextTick(() => {
+      this.drawInitialImage();
+    });
   },
 
   watch: {
@@ -102,9 +113,16 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
   },
   methods: {
     async setContext() {
-      let canvas = document.querySelector('#VueDrawingCanvas');
+      let canvas = document.querySelector('#' + this.canvasId);
       this.context = this.context ? this.context : canvas.getContext('2d');
       await this.setBackground();
+    },
+
+    drawInitialImage() {
+      if (this.initialImage.length > 0) {
+        this.images = [].concat(this.images, this.initialImage);
+        this.redraw();
+      }
     },
 
     clear() {
@@ -126,6 +144,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
         return new Promise(resolve => {
           if (!this.backgroundImage) {
             resolve();
+            return;
           }
 
           const image = new Image();
@@ -146,7 +165,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
       let x, y;
 
       if (event.touches && event.touches.length > 0) {
-        let canvas = document.querySelector('#VueDrawingCanvas');
+        let canvas = document.querySelector('#' + this.canvasId);
         let rect = canvas.getBoundingClientRect();
         x = event.touches[0].clientX - rect.left;
         y = event.touches[0].clientY - rect.top;
@@ -202,6 +221,9 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
               }, {
                 x: this.strokes.from.x,
                 y: coordinate.y
+              }, {
+                x: this.strokes.from.x,
+                y: this.strokes.from.y
               }];
               break;
 
@@ -214,6 +236,9 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
               }, {
                 x: width,
                 y: coordinate.y
+              }, {
+                x: this.strokes.from.x,
+                y: this.strokes.from.y
               }];
               break;
 
@@ -224,6 +249,9 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
               }, {
                 x: this.strokes.from.x,
                 y: coordinate.y
+              }, {
+                x: this.strokes.from.x,
+                y: this.strokes.from.y
               }];
               break;
 
@@ -361,39 +389,46 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
     },
 
     wrapText(context, text, x, y, maxWidth, lineHeight) {
-      var words = text.split(' ');
-      var line = '';
+      const newLineRegex = /(\r\n|\n\r|\n|\r)+/g;
+      const whitespaceRegex = /\s+/g;
+      var lines = text.split(newLineRegex).filter(word => word.length > 0);
 
-      for (var n = 0; n < words.length; n++) {
-        var testLine = line + words[n] + ' ';
-        var metrics = context.measureText(testLine);
-        var testWidth = metrics.width;
+      for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
+        var words = lines[lineNumber].split(whitespaceRegex).filter(word => word.length > 0);
+        var line = '';
 
-        if (testWidth > maxWidth && n > 0) {
-          if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
-            context.strokeText(line, x, y);
+        for (var n = 0; n < words.length; n++) {
+          var testLine = line + words[n] + ' ';
+          var metrics = context.measureText(testLine);
+          var testWidth = metrics.width;
+
+          if (testWidth > maxWidth && n > 0) {
+            if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
+              context.strokeText(line, x, y);
+            } else {
+              context.fillText(line, x, y);
+            }
+
             line = words[n] + ' ';
             y += lineHeight;
           } else {
-            context.fillText(line, x, y);
-            line = words[n] + ' ';
-            y += lineHeight;
+            line = testLine;
           }
-        } else {
-          line = testLine;
         }
-      }
 
-      if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
-        context.strokeText(line, x, y);
-      } else {
-        context.fillText(line, x, y);
+        if (this.watermark.fontStyle && this.watermark.fontStyle.drawType && this.watermark.fontStyle.drawType === 'stroke') {
+          context.strokeText(line, x, y);
+        } else {
+          context.fillText(line, x, y);
+        }
+
+        y += words.length > 0 ? lineHeight : 0;
       }
     },
 
     save() {
       if (this.watermark) {
-        let canvas = document.querySelector('#VueDrawingCanvas');
+        let canvas = document.querySelector('#' + this.canvasId);
         let temp = document.createElement('canvas');
         let ctx = temp.getContext('2d');
         temp.width = this.width;
@@ -462,7 +497,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
           return temp.toDataURL('image/' + this.saveAs, 1);
         }
       } else {
-        let canvas = document.querySelector('#VueDrawingCanvas');
+        let canvas = document.querySelector('#' + this.canvasId);
         this.$emit('update:image', canvas.toDataURL('image/' + this.saveAs, 1));
         return canvas.toDataURL('image/' + this.saveAs, 1);
       }
@@ -470,6 +505,10 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
 
     isEmpty() {
       return this.images.length > 0 ? false : true;
+    },
+
+    getAllStrokes() {
+      return this.images;
     }
 
   },
@@ -478,7 +517,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
     if (isVue2) {
       return h('canvas', {
         attrs: {
-          id: 'VueDrawingCanvas',
+          id: this.canvasId,
           width: this.width,
           height: this.height
         },
@@ -503,7 +542,7 @@ var VueDrawingCanvas = /*#__PURE__*/defineComponent({
     }
 
     return h('canvas', {
-      id: 'VueDrawingCanvas',
+      id: this.canvasId,
       height: this.height,
       width: this.width,
       style: {
